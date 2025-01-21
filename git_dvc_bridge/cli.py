@@ -139,8 +139,8 @@ def run_command(cmd, cwd=None):
     try:
         subprocess.run(cmd, cwd=cwd, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {{' '.join(cmd)}}")
-        print(f"Error: {{e}}")
+        print(f"Error executing command: {' '.join(cmd)}")
+        print(f"Error: {e}")
         sys.exit(e.returncode)
 
 def find_dvc_repos(start_path):
@@ -150,19 +150,19 @@ def find_dvc_repos(start_path):
             yield path.parent
 
 def main():
-    print(f"Current directory: {{os.getcwd()}}")
+    print("Current directory:", os.getcwd())
     
     git_root = subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"],
         universal_newlines=True
     ).strip()
     
-    print(f"Git root directory: {{git_root}}")
+    print("Git root directory:", git_root)
     
     found_repos = False
     for repo in find_dvc_repos(git_root):
         found_repos = True
-        print(f"DVC repository found: {{repo}}")
+        print("DVC repository found:", repo)
         print("Executing DVC push before Git push...")
         run_command(["dvc", "push"], cwd=repo)
     
