@@ -6,7 +6,10 @@ from pathlib import Path
 
 def find_git():
     """Find the original git executable."""
-    return shutil.which("git")
+    git_path = shutil.which("git", path="/usr/bin:/bin:/usr/local/bin")
+    if not git_path:
+        raise RuntimeError("Could not find git executable")
+    return git_path
 
 def setup_git_wrapper():
     """Setup the git wrapper script."""
@@ -32,12 +35,17 @@ import subprocess
 GIT_EXEC = "{git_path}"
 
 if os.environ.get("GIT_WRAPPER_RUNNING"):
-    os.execv(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
+    os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
 
 os.environ["GIT_WRAPPER_RUNNING"] = "1"
 
 def run_command(cmd):
-    return subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {{' '.join(cmd)}}")
+        print(f"Error: {{e}}")
+        sys.exit(e.returncode)
 
 if len(sys.argv) > 1 and sys.argv[1] == "add":
     for arg in sys.argv[2:]:
@@ -52,7 +60,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "add":
         print(f"Executing Git add: {{arg}}")
         run_command([GIT_EXEC, "add", arg])
 else:
-    os.execv(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
+    os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
 '''.format(git_path=find_git())
     
     with open(wrapper_path, "w") as f:
@@ -68,11 +76,17 @@ def setup_git_hooks():
     pre_push_path = hooks_dir / "pre-push"
     pre_push_content = '''#!/usr/bin/env python3
 import os
+import sys
 import subprocess
 from pathlib import Path
 
 def run_command(cmd, cwd=None):
-    return subprocess.run(cmd, cwd=cwd, check=True)
+    try:
+        subprocess.run(cmd, cwd=cwd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {{' '.join(cmd)}}")
+        print(f"Error: {{e}}")
+        sys.exit(e.returncode)
 
 def find_dvc_repos(start_path):
     """Find all DVC repositories under the given path."""
@@ -81,7 +95,7 @@ def find_dvc_repos(start_path):
             yield path.parent
 
 def main():
-    print(f"Current directory: {os.getcwd()}")
+    print(f"Current directory: {{os.getcwd()}}")
     
     # Get git root directory
     git_root = subprocess.check_output(
@@ -89,13 +103,13 @@ def main():
         universal_newlines=True
     ).strip()
     
-    print(f"Git root directory: {git_root}")
+    print(f"Git root directory: {{git_root}}")
     
     # Find and process all DVC repositories
     found_repos = False
     for repo in find_dvc_repos(git_root):
         found_repos = True
-        print(f"DVC repository found: {repo}")
+        print(f"DVC repository found: {{repo}}")
         print("Executing DVC push before Git push...")
         run_command(["dvc", "push"], cwd=repo)
     
@@ -127,6 +141,8 @@ def main():
         print("2. git add data.dvc (automatically runs dvc add)")
         print("3. git commit -m 'message'")
         print("4. git push (automatically runs dvc push)")
+        print("\nPlease restart your terminal or run:")
+        print("source ~/.bashrc")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
