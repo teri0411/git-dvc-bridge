@@ -13,11 +13,11 @@ setup(
         ],
     },
     author="Terry",
-    author_email="your.email@example.com",
+    author_email="teri04111@gmail.com",
     description="A bridge between Git and DVC for automatic data versioning",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/git-dvc-bridge",
+    url="https://github.com/teri0411/git-dvc-bridge",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
