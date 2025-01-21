@@ -49,10 +49,24 @@ Then you can use Git commands as usual:
 
 ## Uninstall
 
-Remove hooks path from Git global configuration:
+Depending on how you installed the package, use one of these methods to uninstall:
 
+1. If installed via pip (PyPI or GitHub):
 ```bash
+# Remove the package
+pip uninstall git-dvc-bridge
+
+# Remove Git hooks configuration
 git config --global --unset core.hooksPath
+```
+
+2. If installed manually:
+```bash
+# Remove Git hooks configuration
+git config --global --unset core.hooksPath
+
+# Remove the cloned repository (optional)
+rm -rf /path/to/git-dvc-bridge
 ```
 
 ## License
