@@ -4,8 +4,26 @@ A tool that automatically integrates Git and DVC to simplify data version manage
 
 ## Installation
 
+You can install this package in three ways:
+
+1. From PyPI (Not available yet):
 ```bash
 pip install git-dvc-bridge
+```
+
+2. Directly from GitHub:
+```bash
+pip install git+https://github.com/teri0411/git-dvc-bridge.git
+```
+
+3. Manual Installation:
+```bash
+# Clone the repository
+git clone https://github.com/teri0411/git-dvc-bridge.git
+cd git-dvc-bridge
+
+# Run the installation script
+./scripts/install-git-hooks.sh
 ```
 
 ## Usage
