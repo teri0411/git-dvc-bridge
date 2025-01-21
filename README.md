@@ -22,6 +22,7 @@ pip install git+https://github.com/teri0411/git-dvc-bridge.git
 
 # Setup Git hooks and wrapper
 git-dvc-bridge
+source ~/.bashrc
 ```
 
 3. Manual Installation:
@@ -52,6 +53,9 @@ After installation and setup, you can use Git commands as usual:
 ## Uninstall
 
 ```bash
+#uninstall the package
+pip uninstall git-dvc-bridge
+
 # Remove Git hooks configuration
 ./uninstall-git-hooks.sh
 source ~/.bashrc

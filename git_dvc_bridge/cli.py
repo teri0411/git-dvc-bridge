@@ -48,18 +48,33 @@ def run_command(cmd):
         sys.exit(e.returncode)
 
 if len(sys.argv) > 1 and sys.argv[1] == "add":
-    for arg in sys.argv[2:]:
-        if arg.endswith(".dvc") and os.path.isfile(arg):
-            with open(arg) as f:
-                for line in f:
-                    if line.startswith("path:"):
-                        dvc_path = line.split(":")[1].strip()
-                        if dvc_path:
+    print("Detected git add command...")
+    # Remove "add" from arguments like 'shift' in bash
+    args = sys.argv[2:]
+    for arg in args:
+        print(f"Processing file: {{arg}}")
+        # Exactly match bash script conditions
+        if os.path.isfile(arg) and arg.endswith(".dvc"):
+            try:
+                with open(arg) as f:
+                    content = f.read()
+                    import re
+                    # Match bash script's grep behavior
+                    match = re.search(r'path:\s*(.+)', content)
+                    if match:
+                        dvc_path = match.group(1).strip()
+                        # Match bash script's -z check
+                        if dvc_path and len(dvc_path) > 0:
                             print(f"Updating DVC tracking... (path: {{dvc_path}})")
                             run_command(["dvc", "add", dvc_path])
+            except Exception as e:
+                print(f"Warning: Could not process .dvc file: {{e}}")
+        
+        # Execute git add exactly like bash script
         print(f"Executing Git add: {{arg}}")
         run_command([GIT_EXEC, "add", arg])
 else:
+    # Exactly match bash exec behavior
     os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
 '''.format(git_path=find_git())
     
