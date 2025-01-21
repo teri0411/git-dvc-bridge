@@ -24,12 +24,12 @@ def setup_git_wrapper():
     
     # Create git wrapper script
     wrapper_path = bin_dir / "git"
-    wrapper_content = f'''#!/usr/bin/env python3
+    wrapper_content = '''#!/usr/bin/env python3
 import os
 import sys
 import subprocess
 
-GIT_EXEC = "{find_git()}"
+GIT_EXEC = "{git_path}"
 
 if os.environ.get("GIT_WRAPPER_RUNNING"):
     os.execv(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
@@ -47,13 +47,13 @@ if len(sys.argv) > 1 and sys.argv[1] == "add":
                     if line.startswith("path:"):
                         dvc_path = line.split(":")[1].strip()
                         if dvc_path:
-                            print(f"Updating DVC tracking... (path: {dvc_path})")
+                            print(f"Updating DVC tracking... (path: {{dvc_path}})")
                             run_command(["dvc", "add", dvc_path])
-        print(f"Executing Git add: {arg}")
+        print(f"Executing Git add: {{arg}}")
         run_command([GIT_EXEC, "add", arg])
 else:
     os.execv(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
-'''
+'''.format(git_path=find_git())
     
     with open(wrapper_path, "w") as f:
         f.write(wrapper_content)
