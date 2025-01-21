@@ -8,12 +8,20 @@ You can install this package in three ways:
 
 1. From PyPI (Not available yet):
 ```bash
+# Install the package
 pip install git-dvc-bridge
+
+# Setup Git hooks and wrapper
+git-dvc-bridge
 ```
 
 2. Directly from GitHub:
 ```bash
+# Install the package
 pip install git+https://github.com/teri0411/git-dvc-bridge.git
+
+# Setup Git hooks and wrapper
+git-dvc-bridge
 ```
 
 3. Manual Installation:
@@ -28,13 +36,7 @@ cd git-dvc-bridge
 
 ## Usage
 
-After installation, run the following command to set up Git-DVC bridge:
-
-```bash
-git-dvc-bridge
-```
-
-Then you can use Git commands as usual:
+After installation and setup, you can use Git commands as usual:
 
 1. `dvc add data` (Initial data tracking)
 2. `git add data.dvc` (automatically runs dvc add)
@@ -49,24 +51,10 @@ Then you can use Git commands as usual:
 
 ## Uninstall
 
-Depending on how you installed the package, use one of these methods to uninstall:
-
-1. If installed via pip (PyPI or GitHub):
-```bash
-# Remove the package
-pip uninstall git-dvc-bridge
-
-# Remove Git hooks configuration
-git config --global --unset core.hooksPath
-```
-
-2. If installed manually:
 ```bash
 # Remove Git hooks configuration
-git config --global --unset core.hooksPath
-
-# Remove the cloned repository (optional)
-rm -rf /path/to/git-dvc-bridge
+./uninstall-git-hooks.sh
+source ~/.bashrc
 ```
 
 ## License
