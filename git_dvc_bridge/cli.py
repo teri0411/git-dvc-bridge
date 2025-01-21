@@ -101,17 +101,17 @@ def check_dvc_file(path):
     """Check if a .dvc file exists in the same directory as the path."""
     path = Path(path)
     
-    # 현재 경로에 .dvc 파일이 있는지 확인
+    # Check if .dvc file exists in current path
     if path.with_suffix(path.suffix + '.dvc').is_file():
         return True, str(path.with_suffix(path.suffix + '.dvc')), False
     
-    # 디렉토리인 경우 해당 디렉토리 내의 .dvc 파일 확인
+    # If it's a directory, check for .dvc file inside
     if path.is_dir():
         dvc_file = path / (path.name + '.dvc')
         if dvc_file.is_file():
             return True, str(dvc_file), False
     
-    # 상위 디렉토리의 .dvc 파일 확인 (.git 디렉토리까지만)
+    # Check parent directories for .dvc files (up to git root)
     current = path
     git_root = subprocess.check_output(
         [GIT_EXEC, "rev-parse", "--show-toplevel"],
@@ -261,14 +261,17 @@ def setup_git_hooks() -> None:
 
 def print_usage_instructions() -> None:
     """Print post-installation usage instructions."""
-    print("Git-DVC bridge installation completed!")
-    print("\nNow you can use Git commands as usual:")
-    print("1. dvc add data (only once initially)")
-    print("2. git add data.dvc (automatically runs dvc add)")
-    print("3. git commit -m 'message'")
-    print("4. git push (automatically runs dvc push)")
-    print("\nPlease restart your terminal or run:")
+    print("Installation complete!")
+    print("Please restart your terminal or run:")
     print("source ~/.bashrc")
+    print("")
+    print("Now you can use Git commands as usual:")
+    print("1. git add data - will automatically run dvc add if data.dvc exists")
+    print("   or git add data.dvc - will automatically run dvc add data")
+    print("2. git commit -m 'message'")
+    print("3. git push - will automatically run dvc push")
+    print("")
+    print("When creating a new Git repository, run 'git init' first.")
 
 def main() -> None:
     """Main entry point for the git-dvc-bridge command."""

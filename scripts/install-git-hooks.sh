@@ -37,13 +37,13 @@ check_dvc_file() {
     local current_path="$path"
     local git_root=$($GIT_EXEC rev-parse --show-toplevel)
     
-    # 현재 경로에 .dvc 파일이 있는지 확인
+    # Check if .dvc file exists in current path
     if [ -f "${path}.dvc" ]; then
         echo "current"
         return 0
     fi
     
-    # 디렉토리인 경우 해당 디렉토리 내의 .dvc 파일 확인
+    # If it's a directory, check for .dvc file inside
     if [ -d "$path" ]; then
         if [ -f "$path/$path.dvc" ]; then
             echo "current"
@@ -51,7 +51,7 @@ check_dvc_file() {
         fi
     fi
     
-    # 상위 디렉토리의 .dvc 파일 확인 (.git 디렉토리까지만)
+    # Check parent directories for .dvc files (up to git root)
     while [ "$current_path" != "." ] && [ "$(cd "$current_path" && pwd)" != "$git_root" ]; do
         current_path=$(dirname "$current_path")
         if [ -f "$current_path/$current_path.dvc" ]; then
@@ -99,11 +99,11 @@ if [ "$1" = "add" ]; then
             echo "Adding $arg.dvc to git"
             $GIT_EXEC add "$arg.dvc"
         elif [ "$dvc_status" = "parent" ]; then
-            # 상위 디렉토리가 DVC로 추적되고 있으면 일반 git add 실행
+            # If parent directory is tracked by DVC, proceed with normal git add
             echo "Parent directory is tracked by DVC, proceeding with git add: $arg"
             $GIT_EXEC add "$arg"
         else
-            # .dvc 파일이 없으면 일반 git add 실행
+            # If no .dvc file found, proceed with normal git add
             echo "No .dvc file found, proceeding with git add: $arg"
             $GIT_EXEC add "$arg"
         fi
@@ -163,4 +163,4 @@ echo "   or git add data.dvc - will automatically run dvc add data"
 echo "2. git commit -m 'message'"
 echo "3. git push - will automatically run dvc push"
 echo ""
-echo "When creating a new Git repository, run this script again after git init."
+echo "When creating a new Git repository, run 'git init' first."
