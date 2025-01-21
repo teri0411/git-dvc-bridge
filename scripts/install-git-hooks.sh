@@ -20,35 +20,96 @@ export PATH="$HOME/bin:$PATH"
 
 # Create Git wrapper script
 echo "Creating Git wrapper script..."
-cat > ~/bin/git << EOF
+cat > ~/bin/git << 'EOF'
 #!/usr/bin/env bash
 
 # Full path to git executable
 GIT_EXEC=/usr/bin/git
 
 # Check if wrapper is already running
-if [ -n "\$GIT_WRAPPER_RUNNING" ]; then
-    exec \$GIT_EXEC "\$@"
+if [ -n "$GIT_WRAPPER_RUNNING" ]; then
+    exec $GIT_EXEC "$@"
 fi
 export GIT_WRAPPER_RUNNING=1
 
-if [ "\$1" = "add" ]; then
+check_dvc_file() {
+    local path="$1"
+    local current_path="$path"
+    local git_root=$($GIT_EXEC rev-parse --show-toplevel)
+    
+    # 현재 경로에 .dvc 파일이 있는지 확인
+    if [ -f "${path}.dvc" ]; then
+        echo "current"
+        return 0
+    fi
+    
+    # 디렉토리인 경우 해당 디렉토리 내의 .dvc 파일 확인
+    if [ -d "$path" ]; then
+        if [ -f "$path/$path.dvc" ]; then
+            echo "current"
+            return 0
+        fi
+    fi
+    
+    # 상위 디렉토리의 .dvc 파일 확인 (.git 디렉토리까지만)
+    while [ "$current_path" != "." ] && [ "$(cd "$current_path" && pwd)" != "$git_root" ]; do
+        current_path=$(dirname "$current_path")
+        if [ -f "$current_path/$current_path.dvc" ]; then
+            echo "parent"
+            return 0
+        fi
+    done
+    
+    echo "none"
+    return 1
+}
+
+if [ "$1" = "add" ]; then
     echo "Detected git add command..."
     shift
-    for arg in "\$@"; do
-        echo "Processing file: \$arg"
-        if [ -f "\$arg" ] && [[ "\$arg" == *.dvc ]]; then
-            dvc_path=\$(grep "path:" "\$arg" | cut -d: -f2 | tr -d " ")
-            if [ ! -z "\$dvc_path" ]; then
-                echo "Updating DVC tracking... (path: \$dvc_path)"
-                dvc add "\$dvc_path"
+    for arg in "$@"; do
+        echo "Processing file: $arg"
+        # Handle .dvc files
+        if [[ "$arg" == *.dvc ]]; then
+            echo "Processing .dvc file: $arg"
+            if [ ! -f "$arg" ]; then
+                echo "Warning: $arg file does not exist, skipping DVC processing"
+                continue
             fi
+            # Get the directory of the .dvc file
+            dvc_dir=$(dirname "$arg")
+            dvc_path=$(grep "path:" "$arg" | cut -d: -f2 | tr -d " ")
+            if [ ! -z "$dvc_path" ]; then
+                # If dvc_path is not absolute, make it relative to the .dvc file location
+                if [[ "$dvc_path" != /* ]]; then
+                    dvc_path="$dvc_dir/$dvc_path"
+                fi
+                echo "Updating DVC tracking... (path: $dvc_path)"
+                dvc add "$dvc_path"
+            fi
+            $GIT_EXEC add "$arg"
+            continue
         fi
-        echo "Executing Git add: \$arg"
-        \$GIT_EXEC add "\$arg"
+        
+        # Check if .dvc file exists for this path
+        dvc_status=$(check_dvc_file "$arg")
+        if [ "$dvc_status" = "current" ]; then
+            echo "$arg has .dvc file, updating DVC tracking"
+            dvc add "$arg"
+            echo "Adding $arg.dvc to git"
+            $GIT_EXEC add "$arg.dvc"
+        elif [ "$dvc_status" = "parent" ]; then
+            # 상위 디렉토리가 DVC로 추적되고 있으면 일반 git add 실행
+            echo "Parent directory is tracked by DVC, proceeding with git add: $arg"
+            $GIT_EXEC add "$arg"
+        else
+            # .dvc 파일이 없으면 일반 git add 실행
+            echo "No .dvc file found, proceeding with git add: $arg"
+            $GIT_EXEC add "$arg"
+        fi
     done
 else
-    \$GIT_EXEC "\$@"
+    $GIT_EXEC "$@"
 fi
 EOF
 
@@ -97,10 +158,9 @@ echo "Please restart your terminal or run:"
 echo "source ~/.bashrc"
 echo ""
 echo "Now you can use Git commands as usual:"
-echo "1. dvc add data (only once initially)"
-echo "2. git add data.dvc (automatically runs dvc add)"
-echo "3. git commit -m 'message'"
-echo "4. git push (automatically runs dvc push)"
-
+echo "1. git add data - will automatically run dvc add if data.dvc exists"
+echo "   or git add data.dvc - will automatically run dvc add data"
+echo "2. git commit -m 'message'"
+echo "3. git push - will automatically run dvc push"
 echo ""
 echo "When creating a new Git repository, run this script again after git init."

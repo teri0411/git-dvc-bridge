@@ -77,7 +77,7 @@ cd git-dvc-bridge
 After installation and setup, you can use Git commands as usual:
 
 1. `dvc add data` (Initial data tracking)
-2. `git add data.dvc` (automatically runs dvc add)
+2. `git add data` or `git add data.dvc` (automatically runs dvc add)
 3. `git commit -m "message"`
 4. `git push` (automatically runs dvc push)
 

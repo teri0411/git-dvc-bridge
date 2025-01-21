@@ -80,6 +80,7 @@ def create_git_wrapper(git_path: str) -> str:
 import os
 import sys
 import subprocess
+from pathlib import Path
 
 GIT_EXEC = "{git_path}"
 
@@ -96,29 +97,77 @@ def run_command(cmd):
         print(f"Error: {{e}}")
         sys.exit(e.returncode)
 
+def check_dvc_file(path):
+    """Check if a .dvc file exists in the same directory as the path."""
+    path = Path(path)
+    
+    # 현재 경로에 .dvc 파일이 있는지 확인
+    if path.with_suffix(path.suffix + '.dvc').is_file():
+        return True, str(path.with_suffix(path.suffix + '.dvc')), False
+    
+    # 디렉토리인 경우 해당 디렉토리 내의 .dvc 파일 확인
+    if path.is_dir():
+        dvc_file = path / (path.name + '.dvc')
+        if dvc_file.is_file():
+            return True, str(dvc_file), False
+    
+    # 상위 디렉토리의 .dvc 파일 확인 (.git 디렉토리까지만)
+    current = path
+    git_root = subprocess.check_output(
+        [GIT_EXEC, "rev-parse", "--show-toplevel"],
+        universal_newlines=True
+    ).strip()
+    
+    while current != current.parent and str(current.absolute()) != git_root:
+        current = current.parent
+        dvc_file = current / (current.name + '.dvc')
+        if dvc_file.is_file():
+            return True, str(dvc_file), True
+    
+    return False, None, False
+
 if len(sys.argv) > 1 and sys.argv[1] == "add":
     print("Detected git add command...")
     args = sys.argv[2:]
     for arg in args:
         print(f"Processing file: {{arg}}")
-        if os.path.isfile(arg) and arg.endswith(".dvc"):
-            try:
-                with open(arg) as f:
-                    content = f.read()
-                    import re
-                    # Match bash script's grep behavior
-                    match = re.search(r'path:\\s*(.+)', content)
-                    if match:
-                        dvc_path = match.group(1).strip()
-                        # Match bash script's -z check
-                        if dvc_path and len(dvc_path) > 0:
-                            print(f"Updating DVC tracking... (path: {{dvc_path}})")
-                            run_command(["dvc", "add", dvc_path])
-            except Exception as e:
-                print(f"Warning: Could not process .dvc file: {{e}}")
+        # Handle .dvc files
+        if arg.endswith(".dvc"):
+            if os.path.isfile(arg):
+                try:
+                    with open(arg) as f:
+                        content = f.read()
+                        import re
+                        match = re.search(r'path:\\s*(.+)', content)
+                        if match:
+                            dvc_path = match.group(1).strip()
+                            if dvc_path:
+                                # If dvc_path is not absolute, make it relative to the .dvc file location
+                                if not os.path.isabs(dvc_path):
+                                    dvc_dir = os.path.dirname(arg)
+                                    dvc_path = os.path.join(dvc_dir, dvc_path)
+                                print(f"Updating DVC tracking... (path: {{dvc_path}})")
+                                run_command(["dvc", "add", dvc_path])
+                except Exception as e:
+                    print(f"Warning: Could not process .dvc file: {{e}}")
+            run_command([GIT_EXEC, "add", arg])
+            continue
         
-        print(f"Executing Git add: {{arg}}")
-        run_command([GIT_EXEC, "add", arg])
+        # Check if .dvc file exists for this path
+        has_dvc, dvc_file, is_parent_dvc = check_dvc_file(arg)
+        if has_dvc:
+            if is_parent_dvc:
+                print(f"Parent directory is tracked by DVC, proceeding with git add: {{arg}}")
+                run_command([GIT_EXEC, "add", arg])
+            else:
+                print(f"{{arg}} has .dvc file, updating DVC tracking")
+                run_command(["dvc", "add", arg])
+                print(f"Adding {{dvc_file}} to git")
+                run_command([GIT_EXEC, "add", dvc_file])
+        else:
+            # No .dvc file, proceed with normal git add
+            print(f"No .dvc file found, proceeding with git add: {{arg}}")
+            run_command([GIT_EXEC, "add", arg])
 else:
     os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
 '''
