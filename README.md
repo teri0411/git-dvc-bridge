@@ -2,6 +2,43 @@
 
 A tool that automatically integrates Git and DVC to simplify data version management.
 
+## Advantages
+
+### 1. Workflow Automation
+- Automatically executes `dvc add` when adding `.dvc` files with `git add`
+- Automatically performs `dvc push` when executing `git push`
+- Prevents mistakes by eliminating manual DVC commands
+
+### 2. User-Friendly Experience
+- Handles DVC operations using existing Git commands
+- No need to learn additional commands
+- Maintains Git workflow while leveraging DVC features
+
+### 3. Consistency Guarantee
+- Automated synchronization between Git and DVC repositories
+- Prevents mismatches between `.dvc` files and actual data
+- Maintains data version consistency across team members
+
+### 4. Error Prevention
+- Prevents missing `dvc add` operations
+- Prevents missing `dvc push` operations
+- Prevents direct Git tracking of data files
+
+### 5. Enhanced Collaboration
+- Ensures consistent workflow across team members
+- Standardizes data version control
+- Easy onboarding for new team members
+
+### 6. Easy Installation and Management
+- One-time system-wide installation
+- No additional per-project configuration needed
+- Automated Git hook management
+
+### 7. Improved Development Productivity
+- Reduces repetitive command inputs
+- Shortens data management tasks
+- Reduces debugging time from version control mistakes
+
 ## Installation
 
 You can install this package in three ways:
