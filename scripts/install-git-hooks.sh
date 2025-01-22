@@ -1,25 +1,18 @@
 #!/bin/bash
 
-echo "Starting script..."
-
 # Find original git executable
-echo "Finding Git executable..."
 ORIGINAL_GIT=/usr/bin/git
-echo "Found Git path: $ORIGINAL_GIT"
 
 # Create bin directory
-echo "Creating bin directory..."
-mkdir -p ~/bin
+mkdir -p ~/bin 2>/dev/null
 
 # Add ~/bin to PATH
-echo "Checking PATH configuration..."
 if ! grep -q "export PATH=\"$HOME/bin:$PATH\"" ~/.bashrc; then
-    echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+    echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc 2>/dev/null
 fi
-export PATH="$HOME/bin:$PATH"
+export PATH="$HOME/bin:$PATH" 2>/dev/null
 
 # Create Git wrapper script
-echo "Creating Git wrapper script..."
 cat > ~/bin/git << 'EOF'
 #!/usr/bin/env bash
 
@@ -35,7 +28,7 @@ export GIT_WRAPPER_RUNNING=1
 check_dvc_file() {
     local path="$1"
     local current_path="$path"
-    local git_root=$($GIT_EXEC rev-parse --show-toplevel)
+    local git_root=$($GIT_EXEC rev-parse --show-toplevel 2>/dev/null)
     
     # Check if .dvc file exists in current path
     if [ -f "${path}.dvc" ]; then
@@ -49,63 +42,102 @@ check_dvc_file() {
             echo "current"
             return 0
         fi
+        
+        # Check parent directories for .dvc files (up to git root)
+        while [ "$current_path" != "." ] && [ "$(cd "$(dirname "$current_path")" && pwd)" != "$git_root" ]; do
+            current_path=$(dirname "$current_path")
+            if [ -f "$current_path/$current_path.dvc" ]; then
+                echo "parent"
+                return 0
+            fi
+        done
+    else
+        # For files, check parent directories
+        while [ "$current_path" != "." ] && [ "$(cd "$(dirname "$current_path")" && pwd 2>/dev/null)" != "$git_root" ]; do
+            current_path=$(dirname "$current_path")
+            if [ -f "$current_path/$current_path.dvc" ]; then
+                echo "parent"
+                return 0
+            fi
+        done
     fi
-    
-    # Check parent directories for .dvc files (up to git root)
-    while [ "$current_path" != "." ] && [ "$(cd "$current_path" && pwd)" != "$git_root" ]; do
-        current_path=$(dirname "$current_path")
-        if [ -f "$current_path/$current_path.dvc" ]; then
-            echo "parent"
-            return 0
-        fi
-    done
     
     echo "none"
     return 1
 }
 
 if [ "$1" = "add" ]; then
-    echo "Detected git add command..."
     shift
     for arg in "$@"; do
-        echo "Processing file: $arg"
+        # Special handling for current directory
+        if [ "$arg" = "." ]; then
+            # Use git ls-files to respect .gitignore
+            $GIT_EXEC ls-files --others --exclude-standard --cached | while read file; do
+                # Skip .dvcignore and other internal files
+                if [[ "$file" == ".dvcignore" ]] || [[ "$file" == ".gitignore" ]] || [[ "$file" == ".git/"* ]] || [[ "$file" == ".dvc/"* ]]; then
+                    $GIT_EXEC add "$file" 2>/dev/null
+                    continue
+                fi
+                
+                if [[ "$file" == *.dvc ]]; then
+                    # Get the directory of the .dvc file
+                    dvc_dir=$(dirname "$file")
+                    dvc_path=$(grep "path:" "$file" | cut -d: -f2 | tr -d " ")
+                    if [ ! -z "$dvc_path" ]; then
+                        if [[ "$dvc_path" != /* ]]; then
+                            dvc_path="$dvc_dir/$dvc_path"
+                        fi
+                        echo "Updating DVC tracking... (path: $dvc_path)"
+                        dvc add "$dvc_path"
+                    fi
+                    $GIT_EXEC add "$file" 2>/dev/null
+                    continue
+                fi
+                
+                # Check if .dvc file exists for this path
+                dvc_status=$(check_dvc_file "$file")
+                if [ "$dvc_status" = "current" ]; then
+                    echo "Processing DVC tracked file: $file"
+                    dvc add "$file"
+                    $GIT_EXEC add "$file.dvc" 2>/dev/null
+                elif [ "$dvc_status" = "parent" ]; then
+                    $GIT_EXEC add "$file" 2>/dev/null
+                else
+                    $GIT_EXEC add "$file" 2>/dev/null
+                fi
+            done
+            continue
+        fi
+        
         # Handle .dvc files
         if [[ "$arg" == *.dvc ]]; then
-            echo "Processing .dvc file: $arg"
             if [ ! -f "$arg" ]; then
                 echo "Warning: $arg file does not exist, skipping DVC processing"
                 continue
             fi
-            # Get the directory of the .dvc file
             dvc_dir=$(dirname "$arg")
             dvc_path=$(grep "path:" "$arg" | cut -d: -f2 | tr -d " ")
             if [ ! -z "$dvc_path" ]; then
-                # If dvc_path is not absolute, make it relative to the .dvc file location
                 if [[ "$dvc_path" != /* ]]; then
                     dvc_path="$dvc_dir/$dvc_path"
                 fi
                 echo "Updating DVC tracking... (path: $dvc_path)"
                 dvc add "$dvc_path"
             fi
-            $GIT_EXEC add "$arg"
+            $GIT_EXEC add "$arg" 2>/dev/null
             continue
         fi
         
         # Check if .dvc file exists for this path
         dvc_status=$(check_dvc_file "$arg")
         if [ "$dvc_status" = "current" ]; then
-            echo "$arg has .dvc file, updating DVC tracking"
+            echo "Processing DVC tracked file: $arg"
             dvc add "$arg"
-            echo "Adding $arg.dvc to git"
-            $GIT_EXEC add "$arg.dvc"
+            $GIT_EXEC add "$arg.dvc" 2>/dev/null
         elif [ "$dvc_status" = "parent" ]; then
-            # If parent directory is tracked by DVC, proceed with normal git add
-            echo "Parent directory is tracked by DVC, proceeding with git add: $arg"
-            $GIT_EXEC add "$arg"
+            $GIT_EXEC add "$arg" 2>/dev/null
         else
-            # If no .dvc file found, proceed with normal git add
-            echo "No .dvc file found, proceeding with git add: $arg"
-            $GIT_EXEC add "$arg"
+            $GIT_EXEC add "$arg" 2>/dev/null
         fi
     done
 else
@@ -113,19 +145,16 @@ else
 fi
 EOF
 
-echo "Setting execute permission for Git wrapper script..."
-chmod +x ~/bin/git
+chmod +x ~/bin/git 2>/dev/null
 
 # Create pre-push hook
-echo "Creating pre-push hook..."
-mkdir -p ~/.git-hooks
+mkdir -p ~/.git-hooks 2>/dev/null
 cat > ~/.git-hooks/pre-push << 'EOF'
 #!/bin/bash
 
 # Find Git repository root directory (.git directory location)
-GIT_ROOT=$(git rev-parse --show-toplevel)
+GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 cd "$GIT_ROOT"
-echo "Git project root: $GIT_ROOT"
 
 # Find .dvc directories only within Git project
 dvc_dirs=$(find . -type d -name ".dvc" ! -path "*/\.*/*")
@@ -140,27 +169,12 @@ if [ -n "$dvc_dirs" ]; then
         dvc push
         cd "$GIT_ROOT"  # Return to Git root for next search
     done <<< "$dvc_dirs"
-else
-    echo "No DVC repository found in Git repository."
 fi
 
 exit 0
 EOF
 
-chmod +x ~/.git-hooks/pre-push
+chmod +x ~/.git-hooks/pre-push 2>/dev/null
 
 # Configure Git to use hooks directory
-echo "Setting Git hooks directory..."
-/usr/bin/git config --global core.hooksPath ~/.git-hooks
-
-echo "Installation complete!"
-echo "Please restart your terminal or run:"
-echo "source ~/.bashrc"
-echo ""
-echo "Now you can use Git commands as usual:"
-echo "1. git add data - will automatically run dvc add if data.dvc exists"
-echo "   or git add data.dvc - will automatically run dvc add data"
-echo "2. git commit -m 'message'"
-echo "3. git push - will automatically run dvc push"
-echo ""
-echo "When creating a new Git repository, run 'git init' first."
+/usr/bin/git config --global core.hooksPath ~/.git-hooks 2>/dev/null
