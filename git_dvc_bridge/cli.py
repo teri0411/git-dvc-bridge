@@ -212,7 +212,6 @@ if len(sys.argv) > 1 and sys.argv[1] == "add":
                 print(f"Adding {{dvc_file}} to git")
                 run_command([GIT_EXEC, "add", dvc_file])
         else:
-            print(f"No .dvc file found, proceeding with git add: {{arg}}")
             run_command([GIT_EXEC, "add", arg])
 else:
     os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
