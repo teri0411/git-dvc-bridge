@@ -97,6 +97,25 @@ def run_command(cmd):
         print(f"Error: {{e}}")
         sys.exit(e.returncode)
 
+def handle_dvc_file(file_path):
+    """Handle .dvc file processing"""
+    if os.path.isfile(file_path):
+        try:
+            with open(file_path) as f:
+                content = f.read()
+                import re
+                match = re.search(r'path:\\s*(.+)', content)
+                if match:
+                    dvc_path = match.group(1).strip()
+                    if dvc_path and not os.path.isabs(dvc_path):
+                        dvc_dir = os.path.dirname(file_path)
+                        dvc_path = os.path.join(dvc_dir, dvc_path)
+                        print(f"Updating DVC tracking... (path: {{dvc_path}})")
+                        run_command(["dvc", "add", dvc_path])
+        except Exception as e:
+            print(f"Warning: Could not process .dvc file: {{e}}")
+    run_command([GIT_EXEC, "add", file_path])
+
 def check_dvc_file(path):
     """Check if a .dvc file exists in the same directory as the path."""
     path = Path(path)
@@ -126,93 +145,62 @@ def check_dvc_file(path):
     
     return False, None, False
 
+def handle_regular_file(file_path):
+    """Handle regular file processing"""
+    has_dvc, dvc_file, is_parent_dvc = check_dvc_file(file_path)
+    if has_dvc:
+        if is_parent_dvc:
+            print(f"Parent directory is tracked by DVC, proceeding with git add: {{file_path}}")
+            run_command([GIT_EXEC, "add", file_path])
+        else:
+            print(f"{{file_path}} has .dvc file, updating DVC tracking")
+            run_command(["dvc", "add", file_path])
+            print(f"Adding {{dvc_file}} to git")
+            run_command([GIT_EXEC, "add", dvc_file])
+    else:
+        run_command([GIT_EXEC, "add", file_path])
+
+def handle_directory():
+    """Handle directory processing (git add .)"""
+    try:
+        files = subprocess.check_output(
+            [GIT_EXEC, "ls-files", "--others", "--exclude-standard", "--cached"],
+            universal_newlines=True,
+            stderr=subprocess.DEVNULL
+        ).splitlines()
+        
+        for file_path in files:
+            # Skip special files
+            if file_path in ['.dvcignore', '.gitignore'] or file_path.startswith(('.git/', '.dvc/')):
+                subprocess.run([GIT_EXEC, "add", file_path], stderr=subprocess.DEVNULL)
+                continue
+            
+            # Handle .dvc files
+            if file_path.endswith(".dvc"):
+                handle_dvc_file(file_path)
+                continue
+            
+            # Process regular files
+            handle_regular_file(file_path)
+            
+    except subprocess.CalledProcessError:
+        os.execvp(GIT_EXEC, [GIT_EXEC, "add", "."])
+
 if len(sys.argv) > 1 and sys.argv[1] == "add":
     args = sys.argv[2:]
     for arg in args:
         # Special handling for current directory
         if arg == ".":
-            try:
-                # Use git ls-files to respect .gitignore
-                files = subprocess.check_output(
-                    [GIT_EXEC, "ls-files", "--others", "--exclude-standard", "--cached"],
-                    universal_newlines=True,
-                    stderr=subprocess.DEVNULL
-                ).splitlines()
-                
-                for file_path in files:
-                    # Skip special files
-                    if file_path in ['.dvcignore', '.gitignore'] or file_path.startswith(('.git/', '.dvc/')):
-                        subprocess.run([GIT_EXEC, "add", file_path], stderr=subprocess.DEVNULL)
-                        continue
-                    
-                    # Handle .dvc files
-                    if file_path.endswith(".dvc"):
-                        if os.path.isfile(file_path):
-                            try:
-                                with open(file_path) as f:
-                                    content = f.read()
-                                    import re
-                                    match = re.search(r'path:\\s*(.+)', content)
-                                    if match:
-                                        dvc_path = match.group(1).strip()
-                                        if dvc_path and not os.path.isabs(dvc_path):
-                                            dvc_dir = os.path.dirname(file_path)
-                                            dvc_path = os.path.join(dvc_dir, dvc_path)
-                                            print(f"Updating DVC tracking... (path: {{dvc_path}})")
-                                            run_command(["dvc", "add", dvc_path])
-                            except Exception as e:
-                                print(f"Warning: Could not process .dvc file: {{e}}")
-                        subprocess.run([GIT_EXEC, "add", file_path], stderr=subprocess.DEVNULL)
-                        continue
-                    
-                    # Check if .dvc file exists for this path
-                    has_dvc, dvc_file, is_parent_dvc = check_dvc_file(file_path)
-                    if has_dvc:
-                        if is_parent_dvc:
-                            subprocess.run([GIT_EXEC, "add", file_path], stderr=subprocess.DEVNULL)
-                        else:
-                            print(f"Processing DVC tracked file: {{file_path}}")
-                            run_command(["dvc", "add", file_path])
-                            subprocess.run([GIT_EXEC, "add", dvc_file], stderr=subprocess.DEVNULL)
-                    else:
-                        subprocess.run([GIT_EXEC, "add", file_path], stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError:
-                os.execvp(GIT_EXEC, [GIT_EXEC, "add", "."])
+            handle_directory()
             continue
         
         # Handle .dvc files
         if arg.endswith(".dvc"):
-            if os.path.isfile(arg):
-                try:
-                    with open(arg) as f:
-                        content = f.read()
-                        import re
-                        match = re.search(r'path:\\s*(.+)', content)
-                        if match:
-                            dvc_path = match.group(1).strip()
-                            if dvc_path and not os.path.isabs(dvc_path):
-                                dvc_dir = os.path.dirname(arg)
-                                dvc_path = os.path.join(dvc_dir, dvc_path)
-                                print(f"Updating DVC tracking... (path: {{dvc_path}})")
-                                run_command(["dvc", "add", dvc_path])
-                except Exception as e:
-                    print(f"Warning: Could not process .dvc file: {{e}}")
-            run_command([GIT_EXEC, "add", arg])
+            handle_dvc_file(arg)
             continue
         
-        # Check if .dvc file exists for this path
-        has_dvc, dvc_file, is_parent_dvc = check_dvc_file(arg)
-        if has_dvc:
-            if is_parent_dvc:
-                print(f"Parent directory is tracked by DVC, proceeding with git add: {{arg}}")
-                run_command([GIT_EXEC, "add", arg])
-            else:
-                print(f"{{arg}} has .dvc file, updating DVC tracking")
-                run_command(["dvc", "add", arg])
-                print(f"Adding {{dvc_file}} to git")
-                run_command([GIT_EXEC, "add", dvc_file])
-        else:
-            run_command([GIT_EXEC, "add", arg])
+        # Handle regular files
+        handle_regular_file(arg)
 else:
     os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
 '''
