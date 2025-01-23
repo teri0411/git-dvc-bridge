@@ -186,23 +186,37 @@ def handle_directory():
     except subprocess.CalledProcessError:
         os.execvp(GIT_EXEC, [GIT_EXEC, "add", "."])
 
-if len(sys.argv) > 1 and sys.argv[1] == "add":
-    args = sys.argv[2:]
-    for arg in args:
-        # Special handling for current directory
-        if arg == ".":
-            handle_directory()
-            continue
-        
-        # Handle .dvc files
-        if arg.endswith(".dvc"):
-            handle_dvc_file(arg)
-            continue
-        
-        # Handle regular files
-        handle_regular_file(arg)
+if len(sys.argv) > 1:
+    if sys.argv[1] == "add":
+        args = sys.argv[2:]
+        for arg in args:
+            # Special handling for current directory
+            if arg == ".":
+                handle_directory()
+                continue
+            
+            # Handle .dvc files
+            if arg.endswith(".dvc"):
+                handle_dvc_file(arg)
+                continue
+            
+            # Handle regular files
+            handle_regular_file(arg)
+    elif sys.argv[1] == "diff":
+        # Run dvc diff first
+        try:
+            print("\\n=== DVC Diff ===")
+            subprocess.run(["dvc", "diff"], check=False)
+            print("\\n=== Git Diff ===")
+        except FileNotFoundError:
+            print("DVC not found, proceeding with git diff only")
+        # Then run git diff
+        os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
+    else:
+        os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
 else:
     os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
+
 '''
 
 def create_pre_push_hook() -> str:

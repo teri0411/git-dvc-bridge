@@ -120,20 +120,28 @@ handle_directory() {
     done
 }
 
+# Main command processing
 if [ "$1" = "add" ]; then
     shift
     for arg in "$@"; do
         if [ "$arg" = "." ]; then
             handle_directory
-            continue
-        fi
-        
-        if [[ "$arg" == *.dvc ]]; then
+        elif [[ "$arg" == *.dvc ]]; then
             handle_dvc_file "$arg"
         else
             handle_regular_file "$arg"
         fi
     done
+elif [ "$1" = "diff" ]; then
+    # Run dvc diff first
+    echo -e "\n=== DVC Diff ==="
+    if command -v dvc &> /dev/null; then
+        dvc diff
+    else
+        echo "DVC not found, proceeding with git diff only"
+    fi
+    echo -e "\n=== Git Diff ==="
+    exec $GIT_EXEC "$@"
 else
     exec $GIT_EXEC "$@"
 fi
