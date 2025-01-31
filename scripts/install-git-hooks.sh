@@ -133,15 +133,25 @@ if [ "$1" = "add" ]; then
         fi
     done
 elif [ "$1" = "diff" ]; then
-    # Run dvc diff first
+    # Run git diff first, then dvc diff
+    echo -e "\n=== Git Diff ==="
+    $GIT_EXEC diff
     echo -e "\n=== DVC Diff ==="
     if command -v dvc &> /dev/null; then
         dvc diff
     else
         echo "DVC not found, proceeding with git diff only"
     fi
-    echo -e "\n=== Git Diff ==="
-    exec $GIT_EXEC "$@"
+elif [ "$1" = "status" ]; then
+    # Run git status first, then dvc status
+    echo -e "\n=== Git Status ==="
+    $GIT_EXEC status
+    echo -e "\n=== DVC Data Status ==="
+    if command -v dvc &> /dev/null; then
+        dvc data status --granular
+    else
+        echo "DVC not found, proceeding with git status only"
+    fi
 else
     exec $GIT_EXEC "$@"
 fi

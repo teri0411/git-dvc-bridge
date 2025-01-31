@@ -13,17 +13,20 @@ GIT_WRAPPER_ENV = "GIT_WRAPPER_RUNNING"
 BASHRC_EXPORT = 'export PATH="{}/bin:$PATH"'
 DEFAULT_HOOKS_DIR = ".git-hooks"
 
+
 class GitDVCError(Exception):
     """Custom exception for Git-DVC bridge errors."""
+
     pass
+
 
 def run_command(cmd: List[str], cwd: Optional[str] = None) -> None:
     """Execute a shell command with error handling.
-    
+
     Args:
         cmd: Command and arguments as list
         cwd: Working directory for command execution
-    
+
     Raises:
         GitDVCError: If command execution fails
     """
@@ -34,12 +37,13 @@ def run_command(cmd: List[str], cwd: Optional[str] = None) -> None:
         print(f"Error: {e}")
         sys.exit(e.returncode)
 
+
 def find_git() -> str:
     """Find the original git executable.
-    
+
     Returns:
         Path to git executable
-    
+
     Raises:
         GitDVCError: If git executable not found
     """
@@ -48,12 +52,13 @@ def find_git() -> str:
         raise GitDVCError("Could not find git executable")
     return git_path
 
+
 def process_dvc_file(file_path: str) -> Optional[str]:
     """Extract and validate DVC path from .dvc file.
-    
+
     Args:
         file_path: Path to .dvc file
-    
+
     Returns:
         Extracted path or None if invalid
     """
@@ -67,12 +72,13 @@ def process_dvc_file(file_path: str) -> Optional[str]:
         print(f"Warning: Could not process .dvc file: {e}")
     return None
 
+
 def create_git_wrapper(git_path: str) -> str:
     """Create git wrapper script content.
-    
+
     Args:
         git_path: Path to original git executable
-    
+
     Returns:
         Wrapper script content
     """
@@ -203,15 +209,23 @@ if len(sys.argv) > 1:
             # Handle regular files
             handle_regular_file(arg)
     elif sys.argv[1] == "diff":
-        # Run dvc diff first
         try:
+            print("\\n=== Git Diff ===")
+            subprocess.run([GIT_EXEC] + sys.argv[1:], check=False)
             print("\\n=== DVC Diff ===")
             subprocess.run(["dvc", "diff"], check=False)
-            print("\\n=== Git Diff ===")
         except FileNotFoundError:
             print("DVC not found, proceeding with git diff only")
-        # Then run git diff
-        os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
+            subprocess.run([GIT_EXEC] + sys.argv[1:], check=False)
+    elif sys.argv[1] == "status":
+        # Run git status and dvc data status --granular
+        try:
+            print("\\n=== Git Status ===")
+            subprocess.run([GIT_EXEC, "status"], check=False)
+            print("\\n=== DVC Data Status ===")
+            subprocess.run(["dvc", "data", "status", "--granular"], check=False)
+        except FileNotFoundError:
+            print("DVC not found, proceeding with git status only")
     else:
         os.execvp(GIT_EXEC, [GIT_EXEC] + sys.argv[1:])
 else:
@@ -219,9 +233,10 @@ else:
 
 '''
 
+
 def create_pre_push_hook() -> str:
     """Create pre-push hook script content.
-    
+
     Returns:
         Pre-push hook script content
     """
@@ -269,42 +284,45 @@ if __name__ == "__main__":
     main()
 '''
 
+
 def setup_git_wrapper() -> None:
     """Setup git wrapper script in user's bin directory."""
     bin_dir = Path.home() / "bin"
     bin_dir.mkdir(exist_ok=True)
-    
+
     # Update PATH in bashrc if needed
     bashrc = Path.home() / ".bashrc"
     path_export = BASHRC_EXPORT.format(Path.home())
-    
+
     if bashrc.exists() and path_export not in bashrc.read_text():
         with open(bashrc, "a") as f:
             f.write(f"\n{path_export}\n")
-    
+
     # Create and configure wrapper script
     wrapper_path = bin_dir / "git"
     wrapper_content = create_git_wrapper(find_git())
-    
+
     with open(wrapper_path, "w") as f:
         f.write(wrapper_content)
     wrapper_path.chmod(0o755)
+
 
 def setup_git_hooks() -> None:
     """Setup git hooks for DVC integration."""
     hooks_dir = Path.home() / DEFAULT_HOOKS_DIR
     hooks_dir.mkdir(exist_ok=True)
-    
+
     # Create and configure pre-push hook
     pre_push_path = hooks_dir / "pre-push"
     pre_push_content = create_pre_push_hook()
-    
+
     with open(pre_push_path, "w") as f:
         f.write(pre_push_content)
     pre_push_path.chmod(0o755)
-    
+
     # Configure git to use hooks directory
     run_command(["git", "config", "--global", "core.hooksPath", str(hooks_dir)])
+
 
 def print_usage_instructions() -> None:
     """Print post-installation usage instructions."""
@@ -320,6 +338,7 @@ def print_usage_instructions() -> None:
     print("")
     print("When creating a new Git repository, run 'git init' first.")
 
+
 def main() -> None:
     """Main entry point for the git-dvc-bridge command."""
     try:
@@ -329,6 +348,7 @@ def main() -> None:
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
