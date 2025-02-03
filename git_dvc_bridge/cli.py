@@ -53,26 +53,6 @@ def find_git() -> str:
     return git_path
 
 
-def process_dvc_file(file_path: str) -> Optional[str]:
-    """Extract and validate DVC path from .dvc file.
-
-    Args:
-        file_path: Path to .dvc file
-
-    Returns:
-        Extracted path or None if invalid
-    """
-    try:
-        with open(file_path) as f:
-            for line in f:
-                if line.startswith("path:"):
-                    dvc_path = line.split(":")[1].strip()
-                    return dvc_path if dvc_path else None
-    except Exception as e:
-        print(f"Warning: Could not process .dvc file: {e}")
-    return None
-
-
 def create_git_wrapper(git_path: str) -> str:
     """Create git wrapper script content.
 
