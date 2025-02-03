@@ -80,12 +80,25 @@ After installation and setup, you can use Git commands as usual:
 2. `git add data` or `git add data.dvc` (automatically runs dvc add)
 3. `git commit -m "message"`
 4. `git push` (automatically runs dvc push)
+5. `git status` (automatically runs `dvc data status --granular`)
+6. `git diff` (automatically runs `dvc diff`)
 
 ## Key Features
 
 - Automatically runs dvc add when .dvc files are detected during git add
 - Automatically runs dvc push when git push is executed
 - Auto-detection and handling of multiple DVC repositories
+- Automatically runs `dvc data status --granular` when `git status` is executed
+- Automatically runs `dvc diff` when `git diff` is executed
+
+## Additional Features
+
+- When executing the `git status` command, `dvc data status --granular` is automatically executed, allowing you to check the detailed status of DVC data.
+- When executing the `git diff` command, `dvc diff` is automatically executed, making it easy to identify differences between data versions.
+
+## --granular Option Explanation
+
+The `--granular` option provides a more detailed view of the DVC data status, helping you clearly understand how each part of the data file has changed.
 
 ## Uninstall
 
