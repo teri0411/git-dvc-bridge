@@ -7,6 +7,7 @@ A tool that automatically integrates Git and DVC to simplify data version manage
 ### 1. Workflow Automation
 - Automatically executes `dvc add` when adding `.dvc` files with `git add`
 - Automatically performs `dvc push` when executing `git push`
+- Automatically runs `dvc pull` after `git pull` to sync data
 - Prevents mistakes by eliminating manual DVC commands
 
 ### 2. User-Friendly Experience
@@ -72,16 +73,24 @@ cd git-dvc-bridge
 ./scripts/install-git-hooks.sh
 ```
 
+## Features
+
+- Automatically runs `dvc add` when adding files tracked by DVC
+- Automatically runs `dvc push` before Git push via pre-push hook
+- Automatically runs `dvc pull` after Git pull to sync data
+- Shows both Git and DVC status with `git status`
+- Shows both Git and DVC diff with `git diff`
+
 ## Usage
 
-After installation and setup, you can use Git commands as usual:
+After installation, you can use Git commands as usual:
 
-1. `dvc add data` (Initial data tracking)
-2. `git add data` or `git add data.dvc` (automatically runs dvc add)
-3. `git commit -m "message"`
-4. `git push` (automatically runs dvc push)
-5. `git status` (automatically runs `dvc data status --granular`)
-6. `git diff` (automatically runs `dvc diff`)
+1. `git add <file>` - Automatically runs `dvc add` if the file is tracked by DVC
+2. `git commit -m "message"` - Commits changes as usual
+3. `git push` - Automatically runs `dvc push` before pushing to ensure data is synced
+4. `git pull` - Automatically runs `dvc pull` after pulling to sync data
+5. `git status` - Shows both Git and DVC status
+6. `git diff` - Shows both Git and DVC diff
 
 ## Key Features
 

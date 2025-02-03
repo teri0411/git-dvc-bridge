@@ -152,6 +152,23 @@ elif [ "$1" = "status" ]; then
     else
         echo "DVC not found, proceeding with git status only"
     fi
+elif [ "$1" = "pull" ]; then
+    # Run git pull first, then dvc pull
+    echo -e "\n=== Git Pull ==="
+    shift  # Remove 'pull' from arguments
+    if ! $GIT_EXEC pull "$@"; then
+        echo "Git pull failed"
+        exit 1
+    fi
+    echo -e "\n=== DVC Pull ==="
+    if command -v dvc &> /dev/null; then
+        if ! dvc pull; then
+            echo "DVC pull failed"
+            exit 1
+        fi
+    else
+        echo "DVC not found, proceeding with git pull only"
+    fi
 else
     exec $GIT_EXEC "$@"
 fi

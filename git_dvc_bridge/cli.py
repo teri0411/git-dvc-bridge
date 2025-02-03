@@ -217,6 +217,18 @@ if len(sys.argv) > 1:
         except FileNotFoundError:
             print("DVC not found, proceeding with git diff only")
             subprocess.run([GIT_EXEC] + sys.argv[1:], check=False)
+    elif sys.argv[1] == "pull":
+        try:
+            print("\\n=== Git Pull ===")
+            subprocess.run([GIT_EXEC] + sys.argv[1:], check=True)
+            print("\\n=== DVC Pull ===")
+            subprocess.run(["dvc", "pull"], check=True)
+        except FileNotFoundError:
+            print("DVC not found, proceeding with git pull only")
+            subprocess.run([GIT_EXEC] + sys.argv[1:], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error during pull: {{e}}")
+            sys.exit(e.returncode)
     elif sys.argv[1] == "status":
         # Run git status and dvc data status --granular
         try:
